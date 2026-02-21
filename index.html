@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonic Clean Gold - Speaker Pro</title>
+    <style>
+        :root {
+            --bg: #08080a;
+            --card: #121214;
+            --primary: #fbff00; /* Amarelo "Premium" */
+            --turbo: #ff3c00;
+            --text: #ffffff;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Slots de Anúncio Estratégicos */
+        .ad-banner {
+            width: 100%;
+            height: 90px;
+            background: #1a1a1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #333;
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .main-container {
+            width: 90%;
+            max-width: 400px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .visualizer-box {
+            background: #000;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #222;
+            overflow: hidden;
+        }
+
+        canvas { width: 100%; height: 80px; display: block; }
+
+        .btn-sonic {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            border: 8px solid #1a1a1e;
+            background: linear-gradient(135deg, var(--primary), #ffa200);
+            color: #000;
+            font-size: 1.5rem;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 0 40px rgba(251, 255, 0, 0.2);
+            transition: 0.2s;
+            margin: 20px 0;
+        }
+
+        .btn-sonic:active { transform: scale(0.9); }
+        .btn-sonic.playing { 
+            background: var(--turbo); 
+            animation: pulse 0.4s infinite alternate;
+            box-shadow: 0 0 50px rgba(255, 60, 0, 0.5);
+        }
+
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+        .grid-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-action {
+            background: #1a1a1e;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 18px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-action:hover { background: #25252b; border-color: var(--primary); }
+
+        .progress-bar-wrap {
+            width: 100%;
+            height: 10px;
+            background: #1a1a1e;
+            border-radius: 5px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--primary);
+            border-radius: 5px;
+        }
+
+        .status-text { color: var(--primary); font-family: monospace; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="ad-banner">ANÚNCIO TOPO (AD-HERE)</div>
+
+    <div class="main-container">
+        <div class="visualizer-box">
+            <canvas id="oscCanvas"></canvas>
+        </div>
+
+        <h2 style="margin:0">SONIC CLEANER GOLD</h2>
+        <p style="font-size: 0.8rem; color: #888;">Remoção de Água e Poeira via Ressonância</p>
+
+        <button class="btn-sonic" id="masterBtn">LIMPAR</button>
+        
+        <div class="status-text" id="freqLabel">OFF</div>
+
+        <div class="progress-bar-wrap" id="progWrap">
+            <div id="progress-fill"></div>
+        </div>
+
+        <div class="grid-buttons">
+            <button class="btn-action" onclick="triggerAction(165, 'Ejetar Água')">💧 WATER EJECT</button>
+            <button class="btn-action" onclick="triggerAction(440, 'Remover Poeira')">🌪️ DUST REMOVER</button>
+            <button class="btn-action" onclick="triggerAction(1000, 'Limpeza Profunda')">🧼 DEEP CLEAN</button>
+            <button class="btn-action" onclick="triggerAction(15000, 'Ultra-sônico')">⚡ TURBO MAX</button>
+        </div>
+    </div>
+
+    <div class="ad-banner" style="margin-top:20px; height: 150px;">ANÚNCIO NATIVO GRANDE</div>
+
+    <script>
+        let audioCtx, osc, gain, analyzer, dataArray;
+        let active = false;
+        let currentFreq = 165;
+
+        // FUNÇÃO DE MONETIZAÇÃO
+        function callAds() {
+            console.log("Chamando anúncio...");
+            /* COLOQUE SEU SCRIPT DE ANÚNCIO AQUI */
+            // Exemplo: if(typeof interstitialAd !== 'undefined') interstitialAd.show();
+        }
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyzer = audioCtx.createAnalyser();
+            gain = audioCtx.createGain();
+            analyzer.connect(gain);
+            gain.connect(audioCtx.destination);
+            drawVisualizer();
+        }
+
+        function toggleMain() {
+            if(!audioCtx) initAudio();
+            callAds(); // Cada vez que clica no botão principal, tenta rodar um ad
+
+            if(active) {
+                stopSonic();
+            } else {
+                startSonic();
+            }
+        }
+
+        function startSonic() {
+            osc = audioCtx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(currentFreq, audioCtx.currentTime);
+            osc.connect(analyzer);
+            
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
+            
+            osc.start();
+            active = true;
+            document.getElementById('masterBtn').classList.add('playing');
+            document.getElementById('masterBtn').textContent = "STOP";
+            document.getElementById('progWrap').style.display = 'block';
+            updateProgress();
+        }
+
+        function stopSonic() {
+            if(osc) {
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+                setTimeout(() => {
+                    osc.stop();
+                    active = false;
+                    document.getElementById('masterBtn').classList.remove('playing');
+                    document.getElementById('masterBtn').textContent = "LIMPAR";
+                    document.getElementById('freqLabel').textContent = "OFF";
+                }, 100);
+            }
+        }
+
+        function triggerAction(freq, label) {
+            if(!active) toggleMain();
+            currentFreq = freq;
+            osc.frequency.exponentialRampToValueAtTime(freq, audioCtx.currentTime + 0.3);
+            document.getElementById('freqLabel').textContent = freq + "Hz - " + label;
+            callAds(); // Chama anúncio ao trocar de modo
+        }
+
+        function updateProgress() {
+            let p = 0;
+            let bar = document.getElementById('progress-fill');
+            let interval = setInterval(() => {
+                if(!active) { clearInterval(interval); return; }
+                p += 0.2;
+                bar.style.width = p + "%";
+                if(p >= 100) {
+                    clearInterval(interval);
+                    stopSonic();
+                    alert("Limpeza concluída! Clique em OK para otimizar novamente.");
+                    callAds(); // Ad ao terminar
+                }
+            }, 50);
+        }
+
+        function drawVisualizer() {
+            const canvas = document.getElementById('oscCanvas');
+            const ctxC = canvas.getContext('2d');
+            analyzer.fftSize = 256;
+            const bufferLength = analyzer.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function render() {
+                requestAnimationFrame(render);
+                analyzer.getByteTimeDomainData(dataArray);
+                ctxC.fillStyle = '#000';
+                ctxC.fillRect(0, 0, canvas.width, canvas.height);
+                ctxC.lineWidth = 3;
+                ctxC.strokeStyle = active ? '#fbff00' : '#222';
+                ctxC.beginPath();
+                let sliceWidth = canvas.width / bufferLength;
+                let x = 0;
+                for(let i = 0; i < bufferLength; i++) {
+                    let v = dataArray[i] / 128.0;
+                    let y = v * canvas.height / 2;
+                    if(i === 0) ctxC.moveTo(x, y);
+                    else ctxC.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctxC.lineTo(canvas.width, canvas.height/2);
+                ctxC.stroke();
+            }
+            render();
+        }
+
+        document.getElementById('masterBtn').addEventListener('click', toggleMain);
+    </script>
+</body>
+</html>
+
